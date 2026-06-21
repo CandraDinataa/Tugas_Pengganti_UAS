@@ -1,0 +1,62 @@
+<?xml version="1.0"?>
+<!DOCTYPE module PUBLIC
+    "-//Checkstyle//DTD Checkstyle Configuration 1.3//EN"
+    "https://checkstyle.org/dtds/configuration_1_3.dtd">
+
+<module name="Checker">
+    <property name="charset" value="UTF-8"/>
+    <property name="severity" value="error"/>
+    <property name="fileExtensions" value="java"/>
+
+    <!-- Tidak ada tab, hanya spasi -->
+    <module name="FileTabCharacter">
+        <property name="eachLine" value="true"/>
+    </module>
+
+    <module name="TreeWalker">
+
+        <!-- Nama class harus PascalCase -->
+        <module name="TypeName"/>
+
+        <!-- Nama method harus camelCase -->
+        <module name="MethodName"/>
+
+        <!-- Nama variabel harus camelCase -->
+        <module name="LocalVariableName"/>
+
+        <!-- Nama parameter harus camelCase -->
+        <module name="ParameterName"/>
+
+        <!-- Setiap class/method public harus punya Javadoc -->
+        <module name="JavadocMethod">
+            <property name="scope" value="public"/>
+            <property name="allowMissingParamTags" value="false"/>
+            <property name="allowMissingReturnTag" value="false"/>
+        </module>
+
+        <!-- Kurung kurawal harus di baris yang sama (K&R style) -->
+        <module name="LeftCurly"/>
+        <module name="RightCurly"/>
+        <module name="NeedBraces"/>
+
+        <!-- Tidak boleh ada whitespace kosong di akhir baris -->
+        <module name="Regexp">
+            <property name="format" value="[ \t]+$"/>
+            <property name="illegalPattern" value="true"/>
+            <property name="message" value="Trailing whitespace tidak diperbolehkan"/>
+        </module>
+
+        <!-- Import tidak boleh menggunakan wildcard -->
+        <module name="AvoidStarImport"/>
+
+        <!-- Tidak boleh ada import yang tidak digunakan -->
+        <module name="UnusedImports"/>
+
+        <!-- Modifier harus berurutan: public, protected, private, static, final -->
+        <module name="ModifierOrder"/>
+
+        <!-- Tidak boleh ada blok catch kosong -->
+        <module name="EmptyCatchBlock"/>
+
+    </module>
+</module>

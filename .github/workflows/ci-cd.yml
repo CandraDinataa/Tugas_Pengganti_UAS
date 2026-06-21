@@ -1,0 +1,191 @@
+name: CI/CD Pipeline - Kalkulator Java Maven
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+      - 'feature/**'
+  pull_request:
+    branches:
+      - main
+      - develop
+
+env:
+  JAVA_VERSION: '11'
+  MAVEN_OPTS: '-Xmx1024m'
+
+jobs:
+  # ============================================================
+  # JOB 1: CONTINUOUS INTEGRATION
+  # Membangun project dan memastikan kode dapat dikompilasi
+  # ============================================================
+  continuous-integration:
+    name: Continuous Integration (Build)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Setup JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Compile project
+        run: mvn compile -B --no-transfer-progress
+
+      - name: Upload compiled classes
+        uses: actions/upload-artifact@v4
+        with:
+          name: compiled-classes
+          path: target/classes/
+          retention-days: 1
+
+  # ============================================================
+  # JOB 2: CONTINUOUS TESTING
+  # Menjalankan seluruh unit test dengan JUnit 5
+  # ============================================================
+  continuous-testing:
+    name: Continuous Testing (Unit Tests)
+    runs-on: ubuntu-latest
+    needs: continuous-integration
+
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Setup JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Run unit tests
+        run: mvn test -B --no-transfer-progress
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: target/surefire-reports/
+          retention-days: 7
+
+      - name: Publish Test Report
+        uses: dorny/test-reporter@v1
+        if: always()
+        with:
+          name: JUnit Test Results
+          path: target/surefire-reports/*.xml
+          reporter: java-junit
+          fail-on-error: true
+
+  # ============================================================
+  # JOB 3: CONTINUOUS INSPECTION
+  # Code quality check: Checkstyle + JaCoCo Coverage
+  # ============================================================
+  continuous-inspection:
+    name: Continuous Inspection (Code Quality & Coverage)
+    runs-on: ubuntu-latest
+    needs: continuous-testing
+
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Setup JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Run Checkstyle (Code Style Inspection)
+        run: mvn checkstyle:check -B --no-transfer-progress
+
+      - name: Run JaCoCo Coverage Check (min 80%)
+        run: mvn verify -B --no-transfer-progress
+
+      - name: Upload JaCoCo Coverage Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: jacoco-coverage-report
+          path: target/site/jacoco/
+          retention-days: 7
+
+      - name: Display Coverage Summary
+        run: |
+          echo "=============================="
+          echo "  LAPORAN CODE COVERAGE"
+          echo "=============================="
+          cat target/site/jacoco/index.html | grep -o 'Total[^<]*<[^>]*>[^<]*<[^>]*>[^<]*' | head -5 || echo "Coverage report generated - lihat artifact jacoco-coverage-report"
+
+  # ============================================================
+  # JOB 4: CONTINUOUS DELIVERY / DEPLOYMENT
+  # Build JAR dan publish sebagai GitHub Release
+  # Hanya berjalan di branch main
+  # ============================================================
+  continuous-delivery:
+    name: Continuous Delivery (Package & Deploy)
+    runs-on: ubuntu-latest
+    needs: continuous-inspection
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Setup JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Build JAR artifact
+        run: mvn package -DskipTests -B --no-transfer-progress
+
+      - name: Rename JAR with build number
+        run: |
+          mv target/calculator-1.0.0.jar target/calculator-1.0.0-build${{ github.run_number }}.jar
+          ls -la target/*.jar
+
+      - name: Upload JAR artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: calculator-jar-build${{ github.run_number }}
+          path: target/calculator-*.jar
+          retention-days: 30
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/heads/main')
+        with:
+          tag_name: v1.0.0-build${{ github.run_number }}
+          name: Release v1.0.0 Build ${{ github.run_number }}
+          body: |
+            ## 🚀 Calculator App - Build ${{ github.run_number }}
+
+            ### Perubahan
+            - Commit: ${{ github.sha }}
+            - Branch: ${{ github.ref_name }}
+            - Dijalankan oleh: ${{ github.actor }}
+
+            ### Komponen CI/CD
+            - ✅ Continuous Integration: Build berhasil
+            - ✅ Continuous Testing: Semua unit test lulus
+            - ✅ Continuous Inspection: Code quality & coverage ≥80%
+            - ✅ Continuous Delivery: JAR artifact tersedia
+
+            ### Download
+            Unduh file `calculator-1.0.0-build${{ github.run_number }}.jar` di bawah.
+          files: target/calculator-*.jar
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
