@@ -11,6 +11,10 @@ on:
       - main
       - develop
 
+permissions:
+  contents: write
+  actions: read
+
 env:
   JAVA_VERSION: '11'
   MAVEN_OPTS: '-Xmx1024m'
