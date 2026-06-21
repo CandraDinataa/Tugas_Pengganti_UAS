@@ -29,9 +29,7 @@
 
         <!-- Setiap class/method public harus punya Javadoc -->
         <module name="JavadocMethod">
-            <property name="scope" value="public"/>
-            <property name="allowMissingParamTags" value="false"/>
-            <property name="allowMissingReturnTag" value="false"/>
+            <property name="accessModifiers" value="public"/>
         </module>
 
         <!-- Kurung kurawal harus di baris yang sama (K&R style) -->
